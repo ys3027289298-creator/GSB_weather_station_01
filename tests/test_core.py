@@ -47,6 +47,37 @@ class TestCore(unittest.TestCase):
         loaded = core.load_state(core.save_state(state))
         self.assertEqual(loaded["day"], 5)
 
+    def test_09_unknown_command_rejected(self):
+        state = core.new_game()
+        self.assertEqual(core.handle_command(state, "explode S1"), "error: unknown command")
+        self.assertEqual(core.handle_command(state, ""), "error: empty command")
+        self.assertEqual(core.handle_command(state, "calibrate"), "error: bad arguments")
+
+    def test_10_empty_data_capacity(self):
+        state = core.new_game()
+        self.assertEqual(core.data_capacity(state), 0)
+        self.assertTrue(core.can_store(state, 100))
+
+    def test_11_capacity_boundary(self):
+        state = core.new_game()
+        self.assertTrue(core.record(state, "A", 100))
+        self.assertFalse(core.record(state, "B", 1))
+        self.assertTrue(core.record(state, "A", 100))
+        self.assertEqual(core.data_capacity(state), 100)
+
+    def test_12_duplicate_and_idempotent_ops(self):
+        state = core.new_game()
+        self.assertTrue(core.observe(state, "S1", 10))
+        self.assertTrue(core.observe(state, "S1", 10))
+        self.assertFalse(core.observe(state, "S1", 20))
+        self.assertEqual(core.data_capacity(state), 10)
+        state["windows"] = {"W1": "booked"}
+        self.assertTrue(core.cancel_observe(state, "W1"))
+        self.assertTrue(core.cancel_observe(state, "W1"))
+        self.assertEqual(state["windows"]["W1"], "open")
+        self.assertEqual(core.handle_command(state, "calibrate S1"), "ok")
+        self.assertEqual(core.handle_command(state, "calibrate S1"), "error: already calibrated")
+
 
 if __name__ == "__main__":
     unittest.main()
