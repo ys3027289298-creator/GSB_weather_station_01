@@ -50,3 +50,58 @@ class TestCore(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCoreExtra(unittest.TestCase):
+    def test_09_illegal_command(self):
+        state = core.new_game()
+        self.assertIn("非法命令", core.dispatch(state, "hack the planet"))
+
+    def test_10_empty_data_capacity(self):
+        state = core.new_game()
+        self.assertEqual(core.data_capacity(state), 0)
+
+    def test_11_capacity_boundary(self):
+        state = core.new_game()
+        self.assertTrue(core.observe(state, "S1", 100))
+        self.assertFalse(core.observe(state, "S2", 1))
+        self.assertTrue(core.observe(state, "S1", 50))
+        self.assertTrue(core.observe(state, "S2", 50))
+        self.assertFalse(core.observe(state, "S3", 1))
+
+    def test_12_observe_idempotent(self):
+        state = core.new_game()
+        self.assertTrue(core.observe(state, "S1", 10))
+        self.assertTrue(core.observe(state, "S1", 10))
+        self.assertEqual(core.data_capacity(state), 10)
+
+    def test_13_cancel_idempotent(self):
+        state = core.new_game()
+        core.observe(state, "S1", 10)
+        self.assertTrue(core.cancel_observe(state, "S1"))
+        self.assertTrue(core.cancel_observe(state, "S1"))
+        self.assertEqual(state["windows"]["S1"], "open")
+        self.assertEqual(core.data_capacity(state), 0)
+
+    def test_14_record_idempotent(self):
+        state = core.new_game()
+        self.assertTrue(core.record(state, "S1", 10))
+        self.assertTrue(core.record(state, "S1", 10))
+        self.assertEqual(core.data_capacity(state), 10)
+
+    def test_15_duplicate_input_rejected(self):
+        state = core.new_game()
+        self.assertEqual(core.dispatch(state, "calibrate S1"), "ok")
+        self.assertIn("重复", core.dispatch(state, "calibrate S1"))
+
+    def test_16_negative_size_rejected(self):
+        state = core.new_game()
+        self.assertFalse(core.observe(state, "S1", -5))
+        self.assertFalse(core.record(state, "S1", -5))
+
+    def test_17_save_load_roundtrip(self):
+        state = core.new_game()
+        core.observe(state, "S1", 10)
+        loaded = core.load_state(core.save_state(state))
+        self.assertEqual(loaded["data"], {"S1": 10})
+        self.assertEqual(loaded["day"], state["day"])
